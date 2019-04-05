@@ -1,4 +1,4 @@
-// Copyright 2018 Ichsan Risnandar
+// Copyright 2019 Ichsan Risnandar
 //
 // Licensed under the Apache License, Version 2.0 (the "License"): you may
 // not use this file except in compliance with the License. You may obtain
@@ -11,6 +11,7 @@
 // WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
 // License for the specific language governing permissions and limitations
 // under the License.
+
 package rabbitmq
 
 import (
@@ -70,6 +71,7 @@ type Pool struct {
 type Conn interface {
 	Channel() (*amqp.Channel, error)
 	Close() error
+	IsClosed() bool
 }
 
 type poolConn struct {
@@ -248,7 +250,7 @@ func (p *Pool) lazyInit() {
 
 func (p *Pool) put(pc *poolConn) error {
 	p.mu.Lock()
-	if !p.closed {
+	if !p.closed && !pc.c.IsClosed() {
 		// putt back active connection to idle connection
 		pc.t = nowFunc()
 		p.idle.pushFront(pc)
@@ -297,6 +299,10 @@ func (ac *activeConn) Close() error {
 	ac.conn = nil
 	ac.pool.put(pc)
 	return nil
+}
+
+func (ac *activeConn) IsClosed() bool {
+	return ac.conn.c.IsClosed()
 }
 
 type idleList struct {
