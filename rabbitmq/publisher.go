@@ -183,15 +183,26 @@ func (m *Publisher) publish(channel *MQChannel, exchange string, payload interfa
 
 func (m *Publisher) publishBatch(exchange string, payloads []interface{}) []error {
 	errs := []error{}
+	requeuAll := func() {
+		for _, payload := range payloads {
+			m.messages <- &MQMessage{
+				exchange: exchange,
+				body:     payload,
+			}
+		}
+	}
+
 	conn, err := m.Pool.Get()
+	defer conn.Close()
 	if err != nil {
+		requeuAll()
 		errs = append(errs, err)
 		return errs
 	}
-	defer conn.Close()
 
 	channel, err := m.getChannel(exchange, conn)
 	if err != nil {
+		requeuAll()
 		errs = append(errs, err)
 		return errs
 	}
@@ -199,6 +210,10 @@ func (m *Publisher) publishBatch(exchange string, payloads []interface{}) []erro
 	for _, payload := range payloads {
 		err := m.publish(channel, exchange, payload)
 		if err != nil {
+			m.messages <- &MQMessage{
+				exchange: exchange,
+				body:     payload,
+			}
 			errs = append(errs, err)
 		}
 	}
