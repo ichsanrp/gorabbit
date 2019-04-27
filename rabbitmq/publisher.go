@@ -63,7 +63,8 @@ func (m *Publisher) defaultPublishHandler() func(channel *amqp.Channel, exchange
 			false,    // mandatory
 			false,    // immediate
 			amqp.Publishing{
-				Body: body,
+				Body:         body,
+				DeliveryMode: amqp.Persistent,
 			},
 		); err != nil {
 			return fmt.Errorf("Exchange Publish: %s", err)
